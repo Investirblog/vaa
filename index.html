@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VAA Tracker — Allocation Tactique</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #11141b;
+      --surface2: #181c26;
+      --border: #1f2535;
+      --border2: #2a3048;
+      --text: #e8ecf5;
+      --text-muted: #6b7694;
+      --text-dim: #3d4a68;
+      --accent-green: #00e5a0;
+      --accent-green-dim: rgba(0,229,160,0.08);
+      --accent-red: #ff4d6d;
+      --accent-red-dim: rgba(255,77,109,0.08);
+      --accent-yellow: #ffd166;
+      --accent-blue: #4d9fff;
+      --accent-blue-dim: rgba(77,159,255,0.08);
+      --mono: 'DM Mono', monospace;
+      --sans: 'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Scanline effect */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 28px 0 20px;
+      margin-bottom: 36px;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .logo-area h1 {
+      font-family: var(--sans);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .logo-area h1 span {
+      color: var(--accent-green);
+    }
+
+    .logo-area p {
+      color: var(--text-muted);
+      font-size: 11px;
+      margin-top: 3px;
+      letter-spacing: 0.05em;
+    }
+
+    .header-meta {
+      text-align: right;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    #last-update {
+      color: var(--text-muted);
+      display: block;
+      margin-top: 4px;
+    }
+
+    /* Signal Cards */
+    .signals-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+
+    @media (max-width: 640px) {
+      .signals-grid { grid-template-columns: 1fr; }
+    }
+
+    .signal-card {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px 24px;
+      background: var(--surface);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .signal-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--border2);
+      transition: background 0.3s;
+    }
+
+    .signal-card.offensive::before { background: var(--accent-green); }
+    .signal-card.defensive::before { background: var(--accent-red); }
+
+    .signal-card.offensive { border-color: rgba(0,229,160,0.2); }
+    .signal-card.defensive { border-color: rgba(255,77,109,0.2); }
+
+    .signal-label {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .signal-strategy {
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .signal-mode {
+      font-family: var(--sans);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    .signal-card.offensive .signal-mode { color: var(--accent-green); }
+    .signal-card.defensive .signal-mode { color: var(--accent-red); }
+    .signal-card.unknown .signal-mode { color: var(--text-muted); }
+
+    .signal-reco {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .signal-reco strong {
+      font-family: var(--sans);
+      font-weight: 700;
+    }
+
+    .signal-breadth {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    .breadth-bar {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    .breadth-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border2);
+    }
+    .breadth-dot.negative { background: var(--accent-red); }
+    .breadth-dot.positive { background: var(--accent-green); }
+    .breadth-dot.neutral { background: var(--accent-yellow); }
+
+    /* Section headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .tag {
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 2px;
+      font-weight: 500;
+    }
+
+    .tag-offensive {
+      background: rgba(0,229,160,0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(0,229,160,0.2);
+    }
+
+    .tag-defensive {
+      background: rgba(255,77,109,0.1);
+      color: var(--accent-red);
+      border: 1px solid rgba(255,77,109,0.2);
+    }
+
+    /* ETF Table */
+    .etf-section { margin-bottom: 32px; }
+
+    .etf-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .etf-table thead tr {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .etf-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .etf-table th.right { text-align: right; }
+
+    .etf-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      transition: background 0.15s;
+    }
+
+    .etf-table tbody tr:last-child { border-bottom: none; }
+    .etf-table tbody tr:hover { background: var(--surface2); }
+
+    .etf-table td {
+      padding: 12px 14px;
+      font-size: 12px;
+      vertical-align: middle;
+    }
+
+    .etf-table td.right { text-align: right; }
+
+    .etf-name {
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text);
+      display: block;
+    }
+
+    .etf-isin {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .score-positive { color: var(--accent-green); }
+    .score-negative { color: var(--accent-red); }
+    .score-neutral { color: var(--text-muted); }
+
+    .mm10-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 2px;
+    }
+
+    .mm10-above {
+      background: rgba(0,229,160,0.08);
+      color: var(--accent-green);
+      border: 1px solid rgba(0,229,160,0.15);
+    }
+
+    .mm10-below {
+      background: rgba(255,77,109,0.08);
+      color: var(--accent-red);
+      border: 1px solid rgba(255,77,109,0.15);
+    }
+
+    .mm10-unknown {
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .cash-row td { opacity: 0.6; font-style: italic; }
+
+    /* Loading state */
+    .loading-overlay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 0;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent-green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      color: var(--text-muted);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+    }
+
+    /* Error state */
+    .error-box {
+      border: 1px solid rgba(255,77,109,0.3);
+      background: rgba(255,77,109,0.05);
+      border-radius: 4px;
+      padding: 20px 24px;
+      color: var(--accent-red);
+      font-size: 13px;
+    }
+
+    /* Refresh button */
+    .refresh-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 8px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .refresh-btn:hover {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+
+    .refresh-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 48px;
+      padding: 20px 0;
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-text {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .footer-disclaimer {
+      font-size: 10px;
+      color: var(--text-dim);
+      max-width: 500px;
+      line-height: 1.5;
+    }
+
+    /* Methodology note */
+    .method-box {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px 20px;
+      background: var(--surface);
+      margin-bottom: 36px;
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .method-box strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .method-formula {
+      margin: 8px 0;
+      padding: 8px 12px;
+      background: var(--bg);
+      border-left: 2px solid var(--accent-green);
+      border-radius: 0 2px 2px 0;
+      font-size: 12px;
+      color: var(--accent-green);
+      letter-spacing: 0.03em;
+    }
+
+    .hidden { display: none; }
+
+    /* Fade in */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease forwards;
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .etf-table th:nth-child(4),
+      .etf-table td:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="header-inner">
+      <div class="logo-area">
+        <h1>VAA <span>Tracker</span></h1>
+        <p>Vigilant Asset Allocation — Signaux mensuels UCITS</p>
+      </div>
+      <div class="header-meta">
+        <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+          ↻ Actualiser
+        </button>
+        <span id="last-update">—</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="loading" class="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Récupération des prix...</div>
+  </div>
+
+  <div id="content" class="hidden">
+
+    <!-- Signal Cards -->
+    <div class="signals-grid fade-in" id="signal-cards"></div>
+
+    <!-- Methodology -->
+    <div class="method-box fade-in">
+      <strong>Méthodologie :</strong>
+      Score momentum 13612W (Keller & Keuning) calculé sur clôtures mensuelles.
+      <div class="method-formula">Score = 12×(p0/p1−1) + 4×(p0/p3−1) + 2×(p0/p6−1) + (p0/p12−1)</div>
+      <strong>VAA-G4 :</strong> Si un seul des 4 ETFs offensifs a un score &lt; 0 → bascule 100% sur le meilleur défensif.
+      <strong>Faber + Breadth :</strong> Si 2+ ETFs offensifs sous leur MM10 mensuelle → bascule défensif. Sinon, on détient les ETFs au-dessus de leur MM10.
+      Données : Yahoo Finance (cours de clôture ajustés, mis à jour en fin de mois).
+    </div>
+
+    <!-- Offensive ETFs -->
+    <div class="etf-section fade-in">
+      <div class="section-header">
+        <span class="section-title">Univers offensif</span>
+        <span class="tag tag-offensive">4 ETFs</span>
+        <div class="section-line"></div>
+      </div>
+      <table class="etf-table">
+        <thead>
+          <tr>
+            <th>ETF</th>
+            <th class="right">Score 13612W</th>
+            <th class="right">Var. 1M</th>
+            <th class="right">MM10</th>
+            <th class="right">Cours</th>
+          </tr>
+        </thead>
+        <tbody id="offensive-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Defensive ETFs -->
+    <div class="etf-section fade-in">
+      <div class="section-header">
+        <span class="section-title">Univers défensif</span>
+        <span class="tag tag-defensive">3 positions</span>
+        <div class="section-line"></div>
+      </div>
+      <table class="etf-table">
+        <thead>
+          <tr>
+            <th>ETF</th>
+            <th class="right">Score 13612W</th>
+            <th class="right">Var. 1M</th>
+            <th class="right">MM10</th>
+            <th class="right">Cours</th>
+          </tr>
+        </thead>
+        <tbody id="defensive-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /content -->
+
+  <div id="error" class="error-box hidden"></div>
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-text">VAA Tracker — investir.blog</span>
+      <span class="footer-disclaimer">
+        Outil d'aide à la décision uniquement. Pas un conseil en investissement.
+        Données Yahoo Finance, potentiellement décalées. Vérifiez toujours les prix avant d'exécuter.
+      </span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+async function loadData() {
+  const btn = document.getElementById('refresh-btn');
+  const loading = document.getElementById('loading');
+  const content = document.getElementById('content');
+  const errorDiv = document.getElementById('error');
+
+  btn.disabled = true;
+  loading.classList.remove('hidden');
+  content.classList.add('hidden');
+  errorDiv.classList.add('hidden');
+
+  try {
+    const res = await fetch('/.netlify/functions/get-prices');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderData(data);
+    content.classList.remove('hidden');
+    loading.classList.add('hidden');
+
+    const d = new Date(data.updatedAt);
+    document.getElementById('last-update').textContent =
+      'Mis à jour : ' + d.toLocaleDateString('fr-BE', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+  } catch (e) {
+    loading.classList.add('hidden');
+    errorDiv.classList.remove('hidden');
+    errorDiv.textContent = '⚠ Erreur lors du chargement : ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function fmtScore(score) {
+  if (score === null || score === undefined) return '<span class="score-neutral">—</span>';
+  const cls = score > 0 ? 'score-positive' : 'score-negative';
+  const sign = score > 0 ? '+' : '';
+  return `<span class="${cls}">${sign}${score.toFixed(4)}</span>`;
+}
+
+function fmtPct(v) {
+  if (v === null || v === undefined) return '<span class="score-neutral">—</span>';
+  const cls = v > 0 ? 'score-positive' : v < 0 ? 'score-negative' : 'score-neutral';
+  return `<span class="${cls}">${v > 0 ? '+' : ''}${v.toFixed(2)}%</span>`;
+}
+
+function fmtMM10(etf) {
+  if (etf.isCash) return '<span class="score-neutral">—</span>';
+  if (etf.aboveMM10 === null) return '<span class="mm10-badge mm10-unknown">—</span>';
+  if (etf.aboveMM10) {
+    return `<span class="mm10-badge mm10-above">↑ ${etf.mm10?.toFixed(2) ?? ''}</span>`;
+  } else {
+    return `<span class="mm10-badge mm10-below">↓ ${etf.mm10?.toFixed(2) ?? ''}</span>`;
+  }
+}
+
+function fmtPrice(etf) {
+  if (etf.isCash) return '<span class="score-neutral">1.30% / an</span>';
+  if (!etf.currentPrice) return '<span class="score-neutral">—</span>';
+  return etf.currentPrice.toFixed(2);
+}
+
+function renderRow(etf) {
+  const cashClass = etf.isCash ? 'cash-row' : '';
+  return `
+    <tr class="${cashClass}">
+      <td>
+        <span class="etf-name">${etf.shortName}</span>
+        <span class="etf-isin">${etf.ticker === 'CASH' ? 'MeDirect — Compte épargne' : etf.isin}</span>
+      </td>
+      <td class="right">${etf.isCash ? '<span class="score-neutral">—</span>' : fmtScore(etf.score13612W)}</td>
+      <td class="right">${etf.isCash ? '<span class="score-neutral">—</span>' : fmtPct(etf.priceChange1M)}</td>
+      <td class="right">${fmtMM10(etf)}</td>
+      <td class="right">${fmtPrice(etf)}</td>
+    </tr>`;
+}
+
+function renderSignalCard(data, strategy) {
+  const isVAA = strategy === 'vaa';
+  const d = isVAA ? data.vaa : data.faber;
+  const label = isVAA ? 'VAA — Vigilant Asset Allocation' : 'Faber + Breadth Filter';
+  const isOffensive = d.mode === 'OFFENSIF';
+  const isUnknown = d.mode === 'UNKNOWN';
+  const modeClass = isUnknown ? 'unknown' : isOffensive ? 'offensive' : 'defensive';
+
+  // Breadth dots
+  const totalOffensive = 4;
+  const negCount = isVAA ? data.vaa.negativeCount : data.faber.negativeCount;
+  let dotsHtml = '';
+  for (let i = 0; i < totalOffensive; i++) {
+    if (isVAA) {
+      dotsHtml += `<div class="breadth-dot ${i < (totalOffensive - negCount) ? 'positive' : 'negative'}"></div>`;
+    } else {
+      dotsHtml += `<div class="breadth-dot ${i < (totalOffensive - negCount) ? 'positive' : 'neutral'}"></div>`;
+    }
+  }
+
+  return `
+    <div class="signal-card ${modeClass}">
+      <div class="signal-label">${label}</div>
+      <div class="signal-mode">${d.mode}</div>
+      <div class="signal-reco">→ <strong>${d.recommendation}</strong></div>
+      <div class="signal-breadth">${d.breadthScore}</div>
+      <div class="breadth-bar">${dotsHtml}</div>
+    </div>`;
+}
+
+function renderData(data) {
+  // Signal cards
+  document.getElementById('signal-cards').innerHTML =
+    renderSignalCard(data, 'vaa') + renderSignalCard(data, 'faber');
+
+  // Offensive table
+  document.getElementById('offensive-tbody').innerHTML =
+    data.etfs.offensive.map(renderRow).join('');
+
+  // Defensive table
+  document.getElementById('defensive-tbody').innerHTML =
+    data.etfs.defensive.map(renderRow).join('');
+}
+
+// Load on page start
+loadData();
+</script>
+
+</body>
+</html>
