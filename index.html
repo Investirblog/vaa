@@ -273,12 +273,13 @@
   <header>
     <div class="header-inner">
       <div class="logo-area">
-        <h1>VAA <span>Tracker</span></h1>
-        <p>Vigilant Asset Allocation — Signaux mensuels UCITS</p>
+        <h1>Momentum <span>ETF</span> Tracker</h1>
+        <p>Allocation tactique UCITS — VAA &amp; Faber · À consulter en fin de mois après clôture</p>
       </div>
       <div class="header-meta">
         <button class="refresh-btn" id="refresh-btn" onclick="loadData()">↻ Actualiser</button>
         <span id="last-update">—</span>
+        <span id="data-period" style="display:block;margin-top:2px;font-size:10px;color:var(--text-dim);">—</span>
       </div>
     </div>
   </header>
@@ -295,10 +296,12 @@
     <div id="consensus-banner" class="fade-in"></div>
 
     <div class="method-box fade-in">
-      <strong>Score 13612W</strong> (Keller & Keuning) — surpondère le momentum récent :
+      <strong>Comment lire ce tableau de bord ?</strong> Consultez-le une fois par mois, le soir du dernier jour ouvré, après la clôture des marchés (17h30 en Europe). Les signaux sont basés sur les cours de clôture mensuels.<br><br>
+      Le <strong>score 13612W</strong> mesure le momentum récent de chaque ETF sur 1, 3, 6 et 12 mois — plus il est élevé, plus la tendance est forte.
       <div class="method-formula">Score = 12×(p0/p1−1) + 4×(p0/p3−1) + 2×(p0/p6−1) + (p0/p12−1)</div>
-      <strong>VAA :</strong> Si 1+ ETF offensif a un score &lt; 0 → 100% sur le défensif au meilleur score.
-      <strong>Faber + Breadth :</strong> Si 2+ ETFs offensifs sous leur MM10 → défensif. Sinon, on détient les ETFs offensifs au-dessus de la MM10. Les lignes <span style="color:var(--accent-green)">vertes ▶</span> indiquent les ETFs actuellement recommandés par chaque méthode.
+      <strong>VAA :</strong> Si 1+ ETF offensif a un score &lt; 0 → basculer 100% sur le meilleur défensif.
+      <strong>Faber + Breadth :</strong> Si 2+ ETFs offensifs sous leur MM10 mensuelle → défensif. Sinon, détenir les ETFs au-dessus de la MM10, équipondérés. En cas de divergence entre les deux méthodes, privilégier le signal défensif.<br><br>
+      Les lignes <span style="color:var(--accent-green)">surlignées en vert</span> indiquent les ETFs recommandés. Le badge indique la pondération suggérée.
     </div>
 
     <div class="etf-section fade-in">
@@ -313,7 +316,7 @@
           <th class="right">Score 13612W</th>
           <th class="right">Var. 1M</th>
           <th class="right">MM10</th>
-          <th class="right">Cours</th>
+          <th class="right">Cours <span style="font-weight:400;opacity:0.5;font-size:9px;">devise locale</span></th>
         </tr></thead>
         <tbody id="offensive-tbody"></tbody>
       </table>
@@ -331,7 +334,7 @@
           <th class="right">Score 13612W</th>
           <th class="right">Var. 1M</th>
           <th class="right">MM10</th>
-          <th class="right">Cours</th>
+          <th class="right">Cours <span style="font-weight:400;opacity:0.5;font-size:9px;">devise locale</span></th>
         </tr></thead>
         <tbody id="defensive-tbody"></tbody>
       </table>
@@ -343,8 +346,8 @@
 
   <footer>
     <div class="footer-inner">
-      <span class="footer-text">VAA Tracker — investir.blog</span>
-      <span class="footer-disclaimer">Outil d'aide à la décision uniquement. Pas un conseil en investissement. Données Yahoo Finance, potentiellement décalées. Vérifiez toujours les prix avant d'exécuter.</span>
+      <span class="footer-text">VAA Tracker — <a href="https://investir.blog" style="color:var(--text-muted);text-decoration:none;">investir.blog</a> · <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3002624" target="_blank" style="color:var(--text-dim);text-decoration:none;font-size:10px;">Paper VAA (Keller & Keuning) ↗</a></span>
+      <span class="footer-disclaimer">⚠ Outil d'aide à la décision uniquement — pas un conseil en investissement. Données Yahoo Finance, potentiellement décalées de quelques heures. Vérifiez toujours les prix réels avant d'exécuter un ordre. Les performances passées ne garantissent pas les performances futures.</span>
     </div>
   </footer>
 
@@ -369,7 +372,19 @@ async function loadData() {
     content.classList.remove('hidden');
     loading.classList.add('hidden');
     const d = new Date(globalData.updatedAt);
-    document.getElementById('last-update').textContent = 'Mis à jour : ' + d.toLocaleDateString('fr-BE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    document.getElementById('last-update').textContent =
+      'Chargé : ' + d.toLocaleDateString('fr-BE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    // Show data period from most recent ETF date
+    const allEtfsForDate = [...globalData.etfs.offensive, ...globalData.etfs.defensive];
+    const lastDate = allEtfsForDate
+      .filter(e => e.lastDate)
+      .map(e => new Date(e.lastDate))
+      .sort((a, b) => b - a)[0];
+    if (lastDate) {
+      const monthNames = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+      document.getElementById('data-period').textContent =
+        'Données : clôture ' + monthNames[lastDate.getMonth()] + ' ' + lastDate.getFullYear();
+    }
   } catch (e) {
     loading.classList.add('hidden');
     errorDiv.classList.remove('hidden');
