@@ -8,7 +8,7 @@ const ETFS = {
     { isin: "IE00BDBRDM35", ticker: "AGGG.L", shortName: "Global Agg EUR", name: "iShares Global Aggregate EUR Hdg", type: "bond" },
   ],
   defensive: [
-    { isin: "IE00BF59RX87", ticker: "JREB.MI", shortName: "Corp Bond EUR", name: "iShares € Corp Bond", type: "bond" },
+    { isin: "IE00BF59RX87", ticker: "JREB.MI", shortName: "Corp Bond EUR", name: "JPMorgan EUR Corp Bond", type: "bond" },
     { isin: "IE00BMYHQM42", ticker: "GOVA.AS", shortName: "Govt Bond EUR", name: "SPDR Bloomberg Euro Govt Bond", type: "bond" },
     { isin: "CASH", ticker: "CASH", shortName: "Cash", name: "Liquidités (MeDirect)", type: "cash" },
   ],
@@ -18,37 +18,109 @@ function fetchUrl(url) {
   return new Promise((resolve, reject) => {
     const options = {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Cache-Control": "no-cache",
       },
     };
-    https.get(url, options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => (data += chunk));
-      res.on("end", () => resolve(data));
-    }).on("error", reject);
+    const req = https.get(url, options, (res) => {
+      // Handle redirects
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        return fetchUrl(res.headers.location).then(resolve).catch(reject);
+      }
+      const chunks = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    });
+    req.on("error", reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error("Timeout")); });
   });
+}
+
+// Try v8 API first, fallback to v7
+async function fetchYahoo(ticker) {
+  const period2 = Math.floor(Date.now() / 1000);
+  const period1 = Math.floor((Date.now() - 15 * 31 * 24 * 60 * 60 * 1000) / 1000);
+
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1mo&includePrePost=false`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1mo&includePrePost=false`,
+    `https://query1.finance.yahoo.com/v7/finance/download/${ticker}?period1=${period1}&period2=${period2}&interval=1mo&events=history`,
+  ];
+
+  for (const url of urls) {
+    try {
+      const raw = await fetchUrl(url);
+      console.log(`[${ticker}] URL: ${url.substring(0, 60)} — Response length: ${raw.length} — Start: ${raw.substring(0, 80)}`);
+      if (raw.length < 50) continue;
+
+      // Try JSON parse (v8 API)
+      if (raw.startsWith("{")) {
+        const json = JSON.parse(raw);
+        if (json?.chart?.result?.[0]) return { format: "v8", data: json };
+        if (json?.chart?.error) {
+          console.log(`[${ticker}] Yahoo error: ${JSON.stringify(json.chart.error)}`);
+          continue;
+        }
+      }
+
+      // Try CSV parse (v7 download)
+      if (raw.includes("Date,Open")) {
+        return { format: "csv", data: raw };
+      }
+    } catch (e) {
+      console.log(`[${ticker}] Fetch error for ${url}: ${e.message}`);
+    }
+  }
+  return null;
+}
+
+function parseV8(data) {
+  const result = data?.chart?.result?.[0];
+  if (!result) return null;
+  const timestamps = result.timestamp || result.timestamps;
+  const closes = result.indicators?.adjclose?.[0]?.adjclose || result.indicators?.quote?.[0]?.close;
+  if (!timestamps || !closes) return null;
+  return timestamps
+    .map((t, i) => ({ date: new Date(t * 1000), price: closes[i] }))
+    .filter((d) => d.price != null)
+    .sort((a, b) => b.date - a.date);
+}
+
+function parseCSV(csv) {
+  const lines = csv.trim().split("\n").slice(1); // skip header
+  return lines
+    .map((line) => {
+      const parts = line.split(",");
+      const date = new Date(parts[0]);
+      const close = parseFloat(parts[4]); // Adj Close column
+      return { date, price: isNaN(close) ? null : close };
+    })
+    .filter((d) => d.price != null)
+    .sort((a, b) => b.date - a.date);
 }
 
 async function getMonthlyPrices(ticker) {
   if (ticker === "CASH") return { ticker, prices: null, isCash: true };
-  const period2 = Math.floor(Date.now() / 1000);
-  const period1 = Math.floor((Date.now() - 14 * 31 * 24 * 60 * 60 * 1000) / 1000);
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1mo`;
   try {
-    const raw = await fetchUrl(url);
-    const json = JSON.parse(raw);
-    const result = json?.chart?.result?.[0];
-    if (!result) return { ticker, prices: null, error: "No result" };
-    const timestamps = result.timestamp || result.timestamps;
-    const closes = result.indicators?.adjclose?.[0]?.adjclose || result.indicators?.quote?.[0]?.close;
-    if (!timestamps || !closes) return { ticker, prices: null, error: "No OHLC" };
-    const monthly = timestamps
-      .map((t, i) => ({ date: new Date(t * 1000), price: closes[i] }))
-      .filter((d) => d.price != null)
-      .sort((a, b) => b.date - a.date);
-    return { ticker, prices: monthly };
+    const result = await fetchYahoo(ticker);
+    if (!result) return { ticker, prices: null, error: "No response from Yahoo" };
+
+    let prices;
+    if (result.format === "v8") {
+      prices = parseV8(result.data);
+    } else {
+      prices = parseCSV(result.data);
+    }
+
+    if (!prices || prices.length === 0) return { ticker, prices: null, error: "Empty price array" };
+    console.log(`[${ticker}] OK — ${prices.length} monthly points, latest: ${prices[0]?.price}`);
+    return { ticker, prices };
   } catch (e) {
+    console.log(`[${ticker}] Exception: ${e.message}`);
     return { ticker, prices: null, error: e.message };
   }
 }
