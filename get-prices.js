@@ -5,10 +5,10 @@ const ETFS = {
     { isin: "IE000XZSV718", ticker: "SPYL.L", shortName: "S&P 500", name: "SPDR S&P 500", type: "equity" },
     { isin: "IE0006WW1TQ4", ticker: "EXUS.DE", shortName: "World ex-US", name: "MSCI World ex-USA", type: "equity" },
     { isin: "IE00BKM4GZ66", ticker: "EIMI.L", shortName: "Émergents", name: "iShares MSCI EM IMI", type: "equity" },
-    { isin: "IE00BDBRDM35", ticker: "0GGH.L", shortName: "Global Agg EUR", name: "iShares Global Aggregate EUR Hdg", type: "bond" },
+    { isin: "IE00BDBRDM35", ticker: "AGGG.L", shortName: "Global Agg EUR", name: "iShares Global Aggregate EUR Hdg", type: "bond" },
   ],
   defensive: [
-    { isin: "IE00BF59RX87", ticker: "IEBC.AS", shortName: "Corp Bond EUR", name: "iShares € Corp Bond", type: "bond" },
+    { isin: "IE00BF59RX87", ticker: "JREB.MI", shortName: "Corp Bond EUR", name: "iShares € Corp Bond", type: "bond" },
     { isin: "IE00BMYHQM42", ticker: "GOVA.AS", shortName: "Govt Bond EUR", name: "SPDR Bloomberg Euro Govt Bond", type: "bond" },
     { isin: "CASH", ticker: "CASH", shortName: "Cash", name: "Liquidités (MeDirect)", type: "cash" },
   ],
