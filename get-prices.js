@@ -14,111 +14,79 @@ const ETFS = {
   ],
 };
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function fetchUrl(url) {
   return new Promise((resolve, reject) => {
     const options = {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Cache-Control": "no-cache",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json,text/plain,*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://finance.yahoo.com/",
+        "Origin": "https://finance.yahoo.com",
       },
     };
     const req = https.get(url, options, (res) => {
-      // Handle redirects
       if (res.statusCode === 301 || res.statusCode === 302) {
         return fetchUrl(res.headers.location).then(resolve).catch(reject);
       }
       const chunks = [];
       res.on("data", (chunk) => chunks.push(chunk));
-      res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      res.on("end", () => {
+        const body = Buffer.concat(chunks).toString("utf8");
+        console.log(`[fetch] ${url.substring(0, 70)} → ${res.statusCode} (${body.length} bytes)`);
+        resolve({ statusCode: res.statusCode, body });
+      });
     });
     req.on("error", reject);
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error("Timeout")); });
+    req.setTimeout(12000, () => { req.destroy(); reject(new Error("Timeout")); });
   });
 }
 
-// Try v8 API first, fallback to v7
-async function fetchYahoo(ticker) {
+async function getMonthlyPrices(ticker, index) {
+  if (ticker === "CASH") return { ticker, prices: null, isCash: true };
+
+  // Stagger requests to avoid rate limiting
+  await delay(index * 600);
+
   const period2 = Math.floor(Date.now() / 1000);
   const period1 = Math.floor((Date.now() - 15 * 31 * 24 * 60 * 60 * 1000) / 1000);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1mo`;
 
-  const urls = [
-    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1mo&includePrePost=false`,
-    `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1mo&includePrePost=false`,
-    `https://query1.finance.yahoo.com/v7/finance/download/${ticker}?period1=${period1}&period2=${period2}&interval=1mo&events=history`,
-  ];
-
-  for (const url of urls) {
-    try {
-      const raw = await fetchUrl(url);
-      console.log(`[${ticker}] URL: ${url.substring(0, 60)} — Response length: ${raw.length} — Start: ${raw.substring(0, 80)}`);
-      if (raw.length < 50) continue;
-
-      // Try JSON parse (v8 API)
-      if (raw.startsWith("{")) {
-        const json = JSON.parse(raw);
-        if (json?.chart?.result?.[0]) return { format: "v8", data: json };
-        if (json?.chart?.error) {
-          console.log(`[${ticker}] Yahoo error: ${JSON.stringify(json.chart.error)}`);
-          continue;
-        }
-      }
-
-      // Try CSV parse (v7 download)
-      if (raw.includes("Date,Open")) {
-        return { format: "csv", data: raw };
-      }
-    } catch (e) {
-      console.log(`[${ticker}] Fetch error for ${url}: ${e.message}`);
-    }
-  }
-  return null;
-}
-
-function parseV8(data) {
-  const result = data?.chart?.result?.[0];
-  if (!result) return null;
-  const timestamps = result.timestamp || result.timestamps;
-  const closes = result.indicators?.adjclose?.[0]?.adjclose || result.indicators?.quote?.[0]?.close;
-  if (!timestamps || !closes) return null;
-  return timestamps
-    .map((t, i) => ({ date: new Date(t * 1000), price: closes[i] }))
-    .filter((d) => d.price != null)
-    .sort((a, b) => b.date - a.date);
-}
-
-function parseCSV(csv) {
-  const lines = csv.trim().split("\n").slice(1); // skip header
-  return lines
-    .map((line) => {
-      const parts = line.split(",");
-      const date = new Date(parts[0]);
-      const close = parseFloat(parts[4]); // Adj Close column
-      return { date, price: isNaN(close) ? null : close };
-    })
-    .filter((d) => d.price != null)
-    .sort((a, b) => b.date - a.date);
-}
-
-async function getMonthlyPrices(ticker) {
-  if (ticker === "CASH") return { ticker, prices: null, isCash: true };
   try {
-    const result = await fetchYahoo(ticker);
-    if (!result) return { ticker, prices: null, error: "No response from Yahoo" };
+    const { statusCode, body } = await fetchUrl(url);
 
-    let prices;
-    if (result.format === "v8") {
-      prices = parseV8(result.data);
-    } else {
-      prices = parseCSV(result.data);
+    if (statusCode === 429) {
+      console.log(`[${ticker}] Rate limited by Yahoo`);
+      return { ticker, prices: null, error: "Rate limited" };
     }
 
-    if (!prices || prices.length === 0) return { ticker, prices: null, error: "Empty price array" };
-    console.log(`[${ticker}] OK — ${prices.length} monthly points, latest: ${prices[0]?.price}`);
-    return { ticker, prices };
+    if (!body || body.length < 50) {
+      return { ticker, prices: null, error: `Empty response (${statusCode})` };
+    }
+
+    const json = JSON.parse(body);
+    const result = json?.chart?.result?.[0];
+    if (!result) {
+      const yahooError = json?.chart?.error?.description || "No result";
+      console.log(`[${ticker}] Yahoo error: ${yahooError}`);
+      return { ticker, prices: null, error: yahooError };
+    }
+
+    const timestamps = result.timestamp || result.timestamps;
+    const closes = result.indicators?.adjclose?.[0]?.adjclose || result.indicators?.quote?.[0]?.close;
+    if (!timestamps || !closes) return { ticker, prices: null, error: "No OHLC data" };
+
+    const monthly = timestamps
+      .map((t, i) => ({ date: new Date(t * 1000), price: closes[i] }))
+      .filter((d) => d.price != null)
+      .sort((a, b) => b.date - a.date);
+
+    console.log(`[${ticker}] OK — ${monthly.length} points, latest: ${monthly[0]?.price}`);
+    return { ticker, prices: monthly };
   } catch (e) {
     console.log(`[${ticker}] Exception: ${e.message}`);
     return { ticker, prices: null, error: e.message };
@@ -149,7 +117,14 @@ const handler = async function (event, context) {
   };
   try {
     const allEtfs = [...ETFS.offensive, ...ETFS.defensive];
-    const results = await Promise.all(allEtfs.map((e) => getMonthlyPrices(e.ticker)));
+
+    // Sequential with delay instead of parallel
+    const results = [];
+    for (let i = 0; i < allEtfs.length; i++) {
+      const r = await getMonthlyPrices(allEtfs[i].ticker, i);
+      results.push(r);
+    }
+
     const priceMap = {};
     results.forEach((r) => { priceMap[r.ticker] = r; });
 
@@ -188,13 +163,24 @@ const handler = async function (event, context) {
     }
 
     const faberNeg = offensiveResults.filter((e) => e.aboveMM10 === false).length;
-    let faberMode, faberReco;
+    let faberMode, faberReco, faberAllocation;
     if (faberNeg >= 2) {
       const bestDef = defensiveResults.filter((e) => !e.isCash && e.score13612W !== null).sort((a, b) => b.score13612W - a.score13612W)[0];
-      faberMode = "DÉFENSIF"; faberReco = bestDef && bestDef.score13612W > 0 ? bestDef.shortName : "Cash (MeDirect)";
+      faberMode = "DÉFENSIF";
+      faberReco = bestDef && bestDef.score13612W > 0 ? bestDef.shortName : "Cash (MeDirect)";
+      faberAllocation = [{ name: faberReco, pct: 100, score: null }];
     } else {
-      const held = offensiveResults.filter((e) => e.aboveMM10 === true);
-      faberMode = "OFFENSIF"; faberReco = held.map((e) => e.shortName).join(" + ") || "Attendre signal";
+      const held = offensiveResults
+        .filter((e) => e.aboveMM10 === true)
+        .sort((a, b) => (b.score13612W ?? -99) - (a.score13612W ?? -99));
+      faberMode = "OFFENSIF";
+      faberReco = held.map((e) => e.shortName).join(" + ") || "Attendre signal";
+      const pct = held.length > 0 ? Math.round(100 / held.length) : 0;
+      faberAllocation = held.map((e, i) => ({
+        name: e.shortName,
+        score: e.score13612W,
+        pct: i === 0 ? 100 - pct * (held.length - 1) : pct
+      }));
     }
 
     return {
@@ -203,7 +189,7 @@ const handler = async function (event, context) {
       body: JSON.stringify({
         etfs: { offensive: offensiveResults, defensive: defensiveResults },
         vaa: { mode: vaaMode, recommendation: vaaReco, negativeCount, breadthScore: `${negativeCount}/4 scores négatifs` },
-        faber: { mode: faberMode, recommendation: faberReco, negativeCount: faberNeg, breadthScore: `${faberNeg}/4 sous MM10` },
+        faber: { mode: faberMode, recommendation: faberReco, allocation: faberAllocation, negativeCount: faberNeg, breadthScore: `${faberNeg}/4 sous MM10` },
         updatedAt: new Date().toISOString(),
       }),
     };

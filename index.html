@@ -258,6 +258,10 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.35s ease forwards; }
 
+    .signal-alloc { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+    .alloc-item { font-size: 11px; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border2); border-radius: 3px; padding: 2px 8px; }
+    .alloc-item strong { color: var(--text); font-weight: 600; }
+
     @media (max-width: 700px) {
       .etf-table th:nth-child(4), .etf-table td:nth-child(4) { display: none; }
     }
@@ -403,11 +407,12 @@ function fmtPrice(etf) {
 
 function renderRow(etf, data, isDefensive) {
   const vaaReco = data.vaa.recommendation;
-  const faberRecos = data.faber.recommendation.split(' + ');
+  const faberAlloc = data.faber.allocation || [];
+  const faberAllocNames = faberAlloc.map(a => a.name);
   const isVaaReco = !isDefensive && data.vaa.mode === 'OFFENSIF' && etf.shortName === vaaReco;
   const isVaaDefReco = isDefensive && data.vaa.mode === 'DÉFENSIF' && (etf.shortName === vaaReco || (vaaReco === 'Cash (MeDirect)' && etf.isCash));
-  const isFaberReco = !isDefensive && data.faber.mode === 'OFFENSIF' && faberRecos.includes(etf.shortName);
-  const isFaberDefReco = isDefensive && data.faber.mode === 'DÉFENSIF' && (etf.shortName === data.faber.recommendation || (data.faber.recommendation === 'Cash (MeDirect)' && etf.isCash));
+  const isFaberReco = !isDefensive && data.faber.mode === 'OFFENSIF' && faberAllocNames.includes(etf.shortName);
+  const isFaberDefReco = isDefensive && data.faber.mode === 'DÉFENSIF' && (faberAllocNames.includes(etf.shortName) || (data.faber.recommendation === 'Cash (MeDirect)' && etf.isCash));
 
   const isRec = isVaaReco || isFaberReco;
   const isRecDef = isVaaDefReco || isFaberDefReco;
@@ -418,7 +423,11 @@ function renderRow(etf, data, isDefensive) {
 
   let badges = '';
   if (isVaaReco || isVaaDefReco) badges += '<span class="rec-badge rec-badge-vaa">VAA</span>';
-  if (isFaberReco || isFaberDefReco) badges += '<span class="rec-badge rec-badge-faber">Faber</span>';
+  if (isFaberReco || isFaberDefReco) {
+    const allocItem = faberAlloc.find(a => a.name === etf.shortName);
+    const pctLabel = allocItem ? ` ${allocItem.pct}%` : '';
+    badges += `<span class="rec-badge rec-badge-faber">Faber${pctLabel}</span>`;
+  }
 
   return `
     <tr class="${rowClass}">
@@ -448,11 +457,20 @@ function renderSignalCard(data, strategy) {
       dotsHtml += `<div class="breadth-dot ${i < (4 - negCount) ? 'positive' : 'neutral'}"></div>`;
     }
   }
+  // Build allocation detail for Faber
+  let allocHtml = '';
+  if (!isVAA && d.allocation && d.allocation.length > 0 && d.mode === 'OFFENSIF') {
+    allocHtml = '<div class="signal-alloc">' +
+      d.allocation.map(a => `<span class="alloc-item">${a.name} <strong>${a.pct}%</strong></span>`).join('') +
+      '</div>';
+  }
+
   return `
     <div class="signal-card ${modeClass}">
       <div class="signal-label">${label}</div>
       <div class="signal-mode">${d.mode}</div>
       <div class="signal-reco">→ ${d.recommendation}</div>
+      ${allocHtml}
       <div class="signal-breadth">${d.breadthScore}</div>
       <div class="breadth-bar">${dotsHtml}</div>
     </div>`;
