@@ -258,6 +258,7 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.35s ease forwards; }
 
+    .signal-isin { font-size: 11px; color: var(--text-dim); font-family: var(--mono); margin: -4px 0 8px; letter-spacing: 0.03em; }
     .signal-alloc { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
     .alloc-item { font-size: 12px; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border2); border-radius: 3px; padding: 3px 9px; }
     .alloc-item strong { color: var(--text); font-weight: 600; }
@@ -274,10 +275,11 @@
     <div class="header-inner">
       <div class="logo-area">
         <h1>Momentum <span>ETF</span> Tracker</h1>
-        <p>Allocation tactique UCITS — VAA &amp; Faber · À consulter en fin de mois après clôture</p>
+        <p>Signaux mensuels basés sur 7 ETF UCITS pour investisseurs européens · <a href="#" id="article-link" style="color:var(--accent-green);text-decoration:none;" target="_blank">Lire l'article explicatif ↗</a></p>
       </div>
       <div class="header-meta">
         <button class="refresh-btn" id="refresh-btn" onclick="loadData()">↻ Actualiser</button>
+        <span id="signal-validity" style="display:block;font-size:12px;color:var(--accent-green);font-weight:600;margin-bottom:2px;">—</span>
         <span id="last-update">—</span>
         <span id="data-period" style="display:block;margin-top:2px;font-size:10px;color:var(--text-dim);">—</span>
       </div>
@@ -374,6 +376,11 @@ async function loadData() {
     const d = new Date(globalData.updatedAt);
     document.getElementById('last-update').textContent =
       'Chargé : ' + d.toLocaleDateString('fr-BE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    // Signal validity label
+    const now = new Date();
+    const signalMonth = now.toLocaleDateString('fr-BE', { month: 'long', year: 'numeric' });
+    const signalEl = document.getElementById('signal-validity');
+    if (signalEl) signalEl.textContent = 'Signal valable pour : ' + signalMonth;
     // Show data period from most recent ETF date
     const allEtfsForDate = [...globalData.etfs.offensive, ...globalData.etfs.defensive];
     const lastDate = allEtfsForDate
@@ -425,9 +432,9 @@ function renderRow(etf, data, isDefensive) {
   const faberAlloc = data.faber.allocation || [];
   const faberAllocNames = faberAlloc.map(a => a.name);
   const isVaaReco = !isDefensive && data.vaa.mode === 'OFFENSIF' && etf.shortName === vaaReco;
-  const isVaaDefReco = isDefensive && data.vaa.mode === 'DÉFENSIF' && (etf.shortName === vaaReco || (vaaReco === 'Cash (MeDirect)' && etf.isCash));
+  const isVaaDefReco = isDefensive && data.vaa.mode === 'DÉFENSIF' && (etf.shortName === vaaReco || (vaaReco === 'Cash (Compte épargne)' && etf.isCash));
   const isFaberReco = !isDefensive && data.faber.mode === 'OFFENSIF' && faberAllocNames.includes(etf.shortName);
-  const isFaberDefReco = isDefensive && data.faber.mode === 'DÉFENSIF' && (faberAllocNames.includes(etf.shortName) || (data.faber.recommendation === 'Cash (MeDirect)' && etf.isCash));
+  const isFaberDefReco = isDefensive && data.faber.mode === 'DÉFENSIF' && (faberAllocNames.includes(etf.shortName) || (data.faber.recommendation === 'Cash (Compte épargne)' && etf.isCash));
 
   const isRec = isVaaReco || isFaberReco;
   const isRecDef = isVaaDefReco || isFaberDefReco;
@@ -480,11 +487,25 @@ function renderSignalCard(data, strategy) {
       '</div>';
   }
 
+  // Find ISIN for recommendation
+  let recoIsin = '';
+  if (globalData) {
+    const allEtfsFlat = [...globalData.etfs.offensive, ...globalData.etfs.defensive];
+    const recoNames = d.recommendation.split(' + ');
+    const recoIsinList = recoNames
+      .map(name => allEtfsFlat.find(e => e.shortName === name))
+      .filter(Boolean)
+      .map(e => e.isCash ? '' : e.isin)
+      .filter(Boolean);
+    if (recoIsinList.length > 0) recoIsin = recoIsinList.join(' · ');
+  }
+
   return `
     <div class="signal-card ${modeClass}">
       <div class="signal-label">${label}</div>
       <div class="signal-mode">${d.mode}</div>
       <div class="signal-reco">→ ${d.recommendation}</div>
+      ${recoIsin ? `<div class="signal-isin">${recoIsin}</div>` : ''}
       ${allocHtml}
       <div class="signal-breadth">${d.breadthScore}</div>
       <div class="breadth-bar">${dotsHtml}</div>
