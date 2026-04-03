@@ -13,9 +13,9 @@
       --surface2: #1a1e2a;
       --border: #252a3a;
       --border2: #313857;
-      --text: #f0f3fa;
-      --text-muted: #8b96b8;
-      --text-dim: #4a5578;
+      --text: #ffffff;
+      --text-muted: #b0bcd8;
+      --text-dim: #7080a0;
       --accent-green: #00e5a0;
       --accent-red: #ff4d6d;
       --accent-yellow: #ffd166;
@@ -30,8 +30,8 @@
       background: var(--bg);
       color: var(--text);
       font-family: var(--sans);
-      font-size: 13px;
-      line-height: 1.6;
+      font-size: 15px;
+      line-height: 1.65;
       min-height: 100vh;
     }
 
@@ -52,13 +52,13 @@
     }
     .logo-area h1 {
       font-family: var(--sans);
-      font-size: 20px;
+      font-size: 24px;
       font-weight: 700;
       color: var(--text);
     }
     .logo-area h1 span { color: var(--accent-green); }
-    .logo-area p { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
-    .header-meta { text-align: right; font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
+    .logo-area p { color: var(--text-muted); font-size: 13px; margin-top: 3px; }
+    .header-meta { text-align: right; font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
     #last-update { color: var(--text-muted); display: block; margin-top: 4px; }
 
     /* Signal Cards */
@@ -89,7 +89,7 @@
     .signal-card.offensive { border-color: rgba(0,229,160,0.18); }
     .signal-card.defensive { border-color: rgba(255,77,109,0.18); }
 
-    .signal-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
+    .signal-label { font-size: 11px; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
     .signal-mode {
       font-size: 30px;
       font-weight: 700;
@@ -101,10 +101,10 @@
     .signal-card.defensive .signal-mode { color: var(--accent-red); }
     .signal-card.unknown .signal-mode { color: var(--text-muted); }
 
-    .signal-reco { font-size: 14px; color: var(--text); margin-bottom: 8px; font-weight: 600; }
+    .signal-reco { font-size: 15px; color: var(--text); margin-bottom: 8px; font-weight: 600; }
     .signal-reco span { color: var(--text-muted); font-weight: 400; font-size: 12px; }
 
-    .signal-breadth { font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
+    .signal-breadth { font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
     .breadth-bar { display: flex; gap: 5px; margin-top: 7px; }
     .breadth-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border2); }
     .breadth-dot.negative { background: var(--accent-red); }
@@ -116,7 +116,7 @@
       border-radius: 6px;
       padding: 14px 20px;
       margin-bottom: 24px;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
       display: flex;
       align-items: center;
@@ -143,9 +143,9 @@
 
     /* Section headers */
     .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+    .section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-muted); }
     .section-line { flex: 1; height: 1px; background: var(--border); }
-    .tag { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+    .tag { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 9px; border-radius: 3px; font-weight: 600; }
     .tag-offensive { background: rgba(0,229,160,0.1); color: var(--accent-green); border: 1px solid rgba(0,229,160,0.2); }
     .tag-defensive { background: rgba(255,77,109,0.1); color: var(--accent-red); border: 1px solid rgba(255,77,109,0.2); }
 
@@ -153,7 +153,7 @@
     .etf-section { margin-bottom: 28px; }
     .etf-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
     .etf-table thead tr { background: var(--surface2); border-bottom: 1px solid var(--border); }
-    .etf-table th { padding: 10px 14px; text-align: left; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); font-weight: 600; }
+    .etf-table th { padding: 11px 16px; text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
     .etf-table th.right { text-align: right; }
     .etf-table tbody tr { border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.15s; }
     .etf-table tbody tr:last-child { border-bottom: none; }
@@ -171,19 +171,19 @@
     }
     .etf-table tbody tr.recommended-def:hover { background: rgba(255,77,109,0.08); }
 
-    .etf-table td { padding: 12px 14px; font-size: 13px; vertical-align: middle; }
-    .etf-table td.right { text-align: right; font-family: var(--mono); font-size: 12px; }
+    .etf-table td { padding: 14px 16px; font-size: 14px; vertical-align: middle; }
+    .etf-table td.right { text-align: right; font-family: var(--mono); font-size: 13px; }
 
-    .etf-name { font-weight: 600; font-size: 13px; color: var(--text); display: block; }
-    .etf-isin { font-size: 10px; color: var(--text-dim); margin-top: 1px; font-family: var(--mono); }
+    .etf-name { font-weight: 600; font-size: 15px; color: var(--text); display: block; }
+    .etf-isin { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-family: var(--mono); }
 
     .rec-badge {
       display: inline-block;
-      font-size: 9px;
+      font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      padding: 1px 6px;
+      padding: 2px 7px;
       border-radius: 2px;
       margin-left: 6px;
       vertical-align: middle;
@@ -196,7 +196,7 @@
     .score-negative { color: var(--accent-red); }
     .score-neutral { color: var(--text-dim); }
 
-    .mm10-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 7px; border-radius: 3px; font-family: var(--mono); }
+    .mm10-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 3px; font-family: var(--mono); }
     .mm10-above { background: rgba(0,229,160,0.08); color: var(--accent-green); border: 1px solid rgba(0,229,160,0.15); }
     .mm10-below { background: rgba(255,77,109,0.08); color: var(--accent-red); border: 1px solid rgba(255,77,109,0.15); }
     .mm10-unknown { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
@@ -210,9 +210,9 @@
       padding: 16px 20px;
       background: var(--surface);
       margin-bottom: 28px;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-muted);
-      line-height: 1.8;
+      line-height: 1.85;
     }
     .method-box strong { color: var(--text); font-weight: 600; }
     .method-formula {
@@ -222,7 +222,7 @@
       border-left: 3px solid var(--accent-green);
       border-radius: 0 3px 3px 0;
       font-family: var(--mono);
-      font-size: 12px;
+      font-size: 13px;
       color: var(--accent-green);
     }
 
@@ -251,15 +251,15 @@
 
     footer { border-top: 1px solid var(--border); margin-top: 40px; padding: 18px 0; }
     .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    .footer-text { font-size: 11px; color: var(--text-dim); }
-    .footer-disclaimer { font-size: 11px; color: var(--text-dim); max-width: 500px; line-height: 1.5; }
+    .footer-text { font-size: 12px; color: var(--text-muted); }
+    .footer-disclaimer { font-size: 12px; color: var(--text-muted); max-width: 500px; line-height: 1.6; }
 
     .hidden { display: none; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.35s ease forwards; }
 
     .signal-alloc { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
-    .alloc-item { font-size: 11px; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border2); border-radius: 3px; padding: 2px 8px; }
+    .alloc-item { font-size: 12px; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border2); border-radius: 3px; padding: 3px 9px; }
     .alloc-item strong { color: var(--text); font-weight: 600; }
 
     @media (max-width: 700px) {
